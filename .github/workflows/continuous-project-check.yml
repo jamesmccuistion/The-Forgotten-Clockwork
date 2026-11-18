@@ -1,0 +1,35 @@
+name: Continuous project checks
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  schedule:
+    - cron: "15 13 * * *"
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  source-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate file structure
+        run: python3 tools/check_project.py
+      - name: Validate Papyrus source declarations
+        run: python3 tools/check_papyrus_sources.py
+      - name: Check quest design contract
+        run: python3 tools/check_story_contract.py
+      - name: Report failed validation as an issue
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          title="[automation] Source checks need attention"
+          existing="$(gh issue list --state open --search "$title in:title" --json number,title --jq '.[] | select(.title == "[automation] Source checks need attention") | .number' | head -n 1)"
+          if [ -z "$existing" ]; then
+            gh issue create --title "$title" --body "Source checks failed. Review workflow run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }} . This is NOT a Skyrim in-game test."
+          else
+            gh issue comment "$existing" --body "Checks failed again: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          fi
