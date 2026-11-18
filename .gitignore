@@ -1,0 +1,6 @@
+*.pex
+*.esp
+*.esm
+*.bsa
+__pycache__/
+*.pyc
